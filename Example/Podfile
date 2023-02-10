@@ -1,0 +1,5 @@
+platform :ios, '14.0'
+
+target 'ArmTTS_Demo' do
+  pod 'ArmTTS', :path => '../'
+end
