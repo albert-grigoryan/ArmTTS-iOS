@@ -9,6 +9,7 @@
 To run the example project, clone the repo, and run `pod install` from the Example directory first.
 
 ## Requirements
+Subscribe to one of the available plans in [RapidAPI](https://rapidapi.com/albertgrigoryan/api/armtts1/pricing) and do not forget to update the **'X_RapidAPI_Key'** with the key provided by RapidAPI.
 
 ## Installation
 
