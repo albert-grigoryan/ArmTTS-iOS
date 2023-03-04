@@ -78,7 +78,7 @@ public class ArmTTS {
     }
     
     private func tokenize(text: String) -> [String] {
-        let tmp_tokens = split(str: text, chars: "։:.")
+        let tmp_tokens = split(str: text, chars: "։:")
         var tokens: [String] = []
         for token in tmp_tokens {
             if (token.count > MAX_LENGTH) {
