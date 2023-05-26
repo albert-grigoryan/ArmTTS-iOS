@@ -20,6 +20,14 @@ it, simply add the following line to your Podfile:
 pod 'ArmTTS'
 ```
 
+And apply the following patch for ONNX Runtime.
+```
+cd Example
+cp onnxruntime_add_int64_uin64_support.patch Example/Pods
+cd Example/Pods
+git apply onnxruntime_add_int64_uin64_support.patch
+```
+
 ## Author
 
 Albert Grigoryan, albert_grigoryan@yahoo.com

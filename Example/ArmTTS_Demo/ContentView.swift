@@ -8,7 +8,7 @@ extension String {
 }
 
 struct ContentView: View {
-    @StateObject var tts = ArmTTS(X_RapidAPI_Key: "UPDATE_TOKEN_HERE")
+    @StateObject var tts = ArmTTS(X_RapidAPI_Key: "UPDATE_TOKEN_HERE")!
     
     @State var text = "Ողջույն, իմ անունը Գոռ է։"
     @State private var speed = 1.0

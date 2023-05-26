@@ -361,16 +361,9 @@
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
-					"-l\"TensorFlowLiteSwift\"",
 					"-l\"c++\"",
-					"-framework",
-					"\"TensorFlowLiteC\"",
-					"-framework",
-					"\"TensorFlowLiteSelectTfOps\"",
 					"-weak_framework",
 					"\"CoreML\"",
-					"-force_load",
-					"$(SRCROOT)/Pods/TensorFlowLiteSelectTfOps/Frameworks/TensorFlowLiteSelectTfOps.framework/TensorFlowLiteSelectTfOps",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "online.armtts.ARMTTS-Demo";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -399,16 +392,9 @@
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
-					"-l\"TensorFlowLiteSwift\"",
 					"-l\"c++\"",
-					"-framework",
-					"\"TensorFlowLiteC\"",
-					"-framework",
-					"\"TensorFlowLiteSelectTfOps\"",
 					"-weak_framework",
 					"\"CoreML\"",
-					"-force_load",
-					"$(SRCROOT)/Pods/TensorFlowLiteSelectTfOps/Frameworks/TensorFlowLiteSelectTfOps.framework/TensorFlowLiteSelectTfOps",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "online.armtts.ARMTTS-Demo";
 				PRODUCT_NAME = "$(TARGET_NAME)";

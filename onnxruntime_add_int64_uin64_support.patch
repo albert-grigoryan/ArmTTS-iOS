@@ -1,0 +1,24 @@
+diff -ruN Pods/onnxruntime-objc/objectivec-old/include/ort_enums.h Pods/onnxruntime-objc/objectivec/include/ort_enums.h
+--- Pods/onnxruntime-objc/objectivec-old/include/ort_enums.h	2023-01-24 22:48:41
++++ Pods/onnxruntime-objc/objectivec/include/ort_enums.h	2023-01-23 23:45:50
+@@ -36,6 +36,8 @@
+   ORTTensorElementDataTypeUInt8,
+   ORTTensorElementDataTypeInt32,
+   ORTTensorElementDataTypeUInt32,
++  ORTTensorElementDataTypeInt64,
++  ORTTensorElementDataTypeUInt64,
+ };
+ 
+ /**
+diff -ruN Pods/onnxruntime-objc/objectivec-old/src/ort_enums.mm Pods/onnxruntime-objc/objectivec/src/ort_enums.mm
+--- Pods/onnxruntime-objc/objectivec-old/src/ort_enums.mm	2023-01-24 22:49:28
++++ Pods/onnxruntime-objc/objectivec/src/ort_enums.mm	2023-01-23 23:45:50
+@@ -51,6 +51,8 @@
+     {ORTTensorElementDataTypeUInt8, ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT8, sizeof(uint8_t)},
+     {ORTTensorElementDataTypeInt32, ONNX_TENSOR_ELEMENT_DATA_TYPE_INT32, sizeof(int32_t)},
+     {ORTTensorElementDataTypeUInt32, ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT32, sizeof(uint32_t)},
++    {ORTTensorElementDataTypeInt64, ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64, sizeof(int64_t)},
++    {ORTTensorElementDataTypeUInt64, ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT64, sizeof(uint64_t)},
+ };
+ 
+ struct GraphOptimizationLevelInfo {

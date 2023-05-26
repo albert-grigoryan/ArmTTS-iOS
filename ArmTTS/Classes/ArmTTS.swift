@@ -1,6 +1,10 @@
-import Foundation
+import Accelerate
 import AVFoundation
-import TensorFlowLite
+import CoreImage
+import Darwin
+import Foundation
+import UIKit
+import onnxruntime_objc
 
 struct ProcessResult {
     let sequence: [Int32];
@@ -8,31 +12,95 @@ struct ProcessResult {
     let message: String;
 }
 
-public class ArmTTS {
-    private let API_URL = "https://armtts1.p.rapidapi.com/preprocess"
-    private let MODEL_1 = "model1"
-    private let MODEL_2 = "model2"
-    private let MAX_LENGTH = 160;
-    private let SAMPLE_RATE = 22_000
+func printError(_ msg: String) {
+    print("[ArmTTS] Error: \(msg)")
+}
+
+public class ArmTTS : NSObject {
+    private let API_URL = "https://armtts1.p.rapidapi.com/v2/preprocess"
+    private let MODEL = "arm-gor"
+    private let MAX_LENGTH = 140;
+    private let SAMPLE_RATE = 44_100
     
     private let rapid_api_key: String
-    private var interpreter1: Interpreter?
-    private var interpreter2: Interpreter?
     private let sampleBufferRenderSynchronizer = AVSampleBufferRenderSynchronizer()
     private let sampleBufferAudioRenderer = AVSampleBufferAudioRenderer()
     
-    func printError(_ msg: String) {
-        print("[ArmTTS] Error: \(msg)")
-    }
+    private var session: ORTSession
+    private var env: ORTEnv
+    private var isInitialized: Bool = false
     
     func checkInit() -> Int {
-        if interpreter1 == nil || interpreter2 == nil {
-            return 1;
+        if self.isInitialized {
+            return 0;
         }
-        return 0;
+        return 1;
     }
     
-    func initModels() {
+    func makeInputTensor(ids: [Int32]) throws -> ORTValue {
+        let inputShape: [NSNumber] = [1, ids.count as NSNumber]
+        let data = NSMutableData()
+        for id in ids {
+            var longId = Int64(id)
+            let longData = Data(bytes: &longId, count: MemoryLayout.size(ofValue: longId))
+            data.append(longData)
+        }
+        
+        let tensor = try ORTValue(tensorData: data, elementType: ORTTensorElementDataType.int64, shape: inputShape)
+        return tensor
+    }
+    
+    func makeInputLengthsTensor(ids: [Int32]) throws -> ORTValue {
+        let inputShape: [NSNumber] = [1]
+        let data = NSMutableData()
+        var longCount = Int64(ids.count)
+        let longData = Data(bytes: &longCount, count: MemoryLayout.size(ofValue: longCount))
+        data.append(longData)
+        
+        let tensor = try ORTValue(tensorData: data, elementType: ORTTensorElementDataType.int64, shape: inputShape)
+        return tensor
+    }
+    
+    func makeScales(speed: Float) throws -> ORTValue {
+        let inputShape: [NSNumber] = [3]
+        let data = NSMutableData()
+        let scales: [Float32] = [0.0, speed, 0.0]
+        for scale in scales {
+            var tmp: Float32 = scale;
+            let floatData = Data(bytes: &tmp, count: MemoryLayout.size(ofValue: tmp))
+            data.append(floatData)
+        }
+        
+        let tensor = try ORTValue(tensorData: data, elementType: ORTTensorElementDataType.float, shape: inputShape)
+        return tensor
+    }
+
+    func synthesize(ids: [Int32], speed: Float) -> Data {
+        do {
+            let inputTensor = try makeInputTensor(ids: ids)
+            let inputLengthsTensor = try makeInputLengthsTensor(ids: ids)
+            let inputScalesTensor = try makeScales(speed: speed)
+            
+            // Run ORT Inference Session
+            let inputs = ["input": inputTensor, "input_lengths": inputLengthsTensor, "scales": inputScalesTensor]
+            let outputs = try session.run(withInputs: inputs,
+                                          outputNames: ["output"],
+                                          runOptions: nil)
+            
+            guard let rawOutputValue = outputs["output"] else {
+                fatalError("failed to get model output")
+            }
+            let rawOutputData = try rawOutputValue.tensorData() as Data
+            return rawOutputData;
+        } catch {
+            printError("Synthesize failed: \(error).")
+        }
+        return Data();
+    }
+    
+    public init?(X_RapidAPI_Key: String) {
+        self.rapid_api_key = X_RapidAPI_Key
+        sampleBufferRenderSynchronizer.addRenderer(sampleBufferAudioRenderer)
         do {
             let myBundle = Bundle(for: Self.self)
             guard let resourceBundleURL = myBundle.url( forResource: "ArmTTS", withExtension: "bundle") else { fatalError("ArmTTS.bundle not found!") }
@@ -40,68 +108,54 @@ public class ArmTTS {
                 else { fatalError("Cannot access ArmTTS.bundle!") }
             
             // Load Models
-            if let url: URL = resourceBundle.url(forResource: MODEL_1, withExtension: "tflite") {
-                var options = Interpreter.Options()
-                options.threadCount = 5
-                interpreter1 = try Interpreter(modelPath: url.path, options: options)
+            if let modelPath: URL = resourceBundle.url(forResource: MODEL, withExtension: "onnx") {
+                // Start the ORT inference environment and specify the options for session
+                self.env = try ORTEnv(loggingLevel: ORTLoggingLevel.verbose)
+                let options = try ORTSessionOptions()
+                
+                // Create the ORTSession
+                self.session = try ORTSession(env: env, modelPath: modelPath.path, sessionOptions: options)
+                self.isInitialized = true
             } else {
-                printError("'\(MODEL_1).tflite' is missing.")
-            }
-            if let url: URL = resourceBundle.url(forResource: MODEL_2, withExtension: "tflite") {
-                var options = Interpreter.Options()
-                options.threadCount = 5
-                interpreter2 = try Interpreter(modelPath: url.path, options: options)
-            } else {
-                printError("'\(MODEL_2).tflite' is missing.")
+                printError("'\(MODEL).onnx' is missing.")
+                return nil
             }
         } catch {
-            printError("Initialization failed: \(error)\nPlease check the models (\(MODEL_1).tflite, \(MODEL_2).tflite) are copied properly.")
+            printError("Initialization failed: \(error)\nPlease check the model (\(MODEL).onnx, is copied properly.")
+            return nil
         }
-    }
-
-    public init(X_RapidAPI_Key: String) {
-        self.rapid_api_key = X_RapidAPI_Key
-        sampleBufferRenderSynchronizer.addRenderer(sampleBufferAudioRenderer)
-        initModels()
-    }
-    
-    func split(str: String, chars: String) -> [String] {
-        var result: [String] = []
-        let tmp = str.components(separatedBy: CharacterSet(charactersIn: chars))
-        for token in tmp {
-            let t = token.trimmingCharacters(in: .whitespaces)
-            if (!t.isEmpty) {
-                result.append(t)
-            }
-        }
-        return result
+        super.init()
     }
     
     private func tokenize(text: String) -> [String] {
-        let tmp_tokens = split(str: text, chars: "։:")
-        var tokens: [String] = []
-        for token in tmp_tokens {
-            if (token.count > MAX_LENGTH) {
-                var tmp_string = ""
-                for word in split(str: token, chars: " ") {
-                    if (tmp_string.count + word.count < MAX_LENGTH/2) {
-                        tmp_string += " " + word;
-                    } else {
-                        if (!tmp_string.isEmpty) {
-                            tokens.append(String(tmp_string.trimmingCharacters(in: .whitespaces)))
-                        }
-                        tmp_string = word
-                    }
-                }
-                if (!tmp_string.isEmpty) {
-                    tokens.append(String(tmp_string.trimmingCharacters(in: .whitespaces)))
-                }
-            } else {
-                tokens.append(String(token.trimmingCharacters(in: .whitespaces)))
+        var tokens = [String]()
+        let s_full_stops = try! NSRegularExpression(pattern: "[;։․.]")
+        let s_commas = try! NSRegularExpression(pattern: "[՝`]")
+        var modifiedText = s_full_stops.stringByReplacingMatches(in: text, options: [], range: NSRange(location: 0, length: text.count), withTemplate: ":")
+        modifiedText = s_commas.stringByReplacingMatches(in: modifiedText, options: [], range: NSRange(location: 0, length: modifiedText.count), withTemplate: ",")
+        
+        while modifiedText.count > 0 {
+            if modifiedText.count <= MAX_LENGTH {
+                tokens.append(modifiedText.trimmingCharacters(in: .whitespacesAndNewlines))
+                break
+            } else if let range = modifiedText.prefix(MAX_LENGTH).range(of: ":", options: .backwards) {
+                let idx = modifiedText.distance(from: modifiedText.startIndex, to: range.lowerBound)
+                tokens.append(modifiedText.prefix(idx + 1).trimmingCharacters(in: .whitespacesAndNewlines))
+                modifiedText = String(modifiedText.suffix(from: range.upperBound))
+            } else if let range = modifiedText.prefix(MAX_LENGTH).range(of: ",", options: .backwards) {
+                let idx = modifiedText.distance(from: modifiedText.startIndex, to: range.lowerBound)
+                tokens.append(modifiedText.prefix(idx + 1).trimmingCharacters(in: .whitespacesAndNewlines))
+                modifiedText = String(modifiedText.suffix(from: range.upperBound))
+            } else if let range = modifiedText.prefix(MAX_LENGTH).range(of: " ") {
+                let idx = modifiedText.distance(from: modifiedText.startIndex, to: range.lowerBound)
+                tokens.append(modifiedText.prefix(idx + 1).trimmingCharacters(in: .whitespacesAndNewlines) + ",")
+                modifiedText = String(modifiedText.suffix(from: range.upperBound))
             }
         }
+        
         return tokens
     }
+
     
     private func play(data: Data) {
         do {
@@ -119,34 +173,6 @@ public class ArmTTS {
         }
     }
     
-    private func synthesize(input_ids: [Int32], speed: Float = 1.0) -> Data {
-        do {
-            try interpreter1!.resizeInput(at: 0, to: [1, input_ids.count])
-            try interpreter1!.allocateTensors()
-            let data = input_ids.withUnsafeBufferPointer(Data.init)
-            try interpreter1!.copy(data, toInputAt: 0)
-            var speakerId: Int32 = 0
-            try interpreter1!.copy(Data(bytes: &speakerId, count: 4), toInputAt: 1)
-            var speedRatio = speed
-            try interpreter1!.copy(Data(bytes: &speedRatio, count: 4), toInputAt: 2)
-            var f0Ratio: Float = 1
-            try interpreter1!.copy(Data(bytes: &f0Ratio, count: 4), toInputAt: 3)
-            var energyRatio: Float = 1
-            try interpreter1!.copy(Data(bytes: &energyRatio, count: 4), toInputAt: 4)
-            try interpreter1!.invoke()
-            let melSpectrogram = try interpreter1!.output(at: 1)
-            try interpreter2!.resizeInput(at: 0, to: melSpectrogram.shape)
-            try interpreter2!.allocateTensors()
-            try interpreter2!.copy(melSpectrogram.data, toInputAt: 0)
-            try interpreter2!.invoke()
-            let data2 = try interpreter2!.output(at: 0).data
-            return data2
-        } catch {
-            printError(error.localizedDescription)
-        }
-        return Data();
-    }
-
     public func speak(text: String, speed: Float = 1.0) {
         let reversedSpeed = 2 - speed
         if checkInit() != 0 {
@@ -161,7 +187,7 @@ public class ArmTTS {
                 printError(processResult.message)
                 return
             }
-            data.append(synthesize(input_ids: processResult.sequence, speed: reversedSpeed))
+            data.append(synthesize(ids: processResult.sequence, speed: reversedSpeed))
         }
         play(data: data)
     }
@@ -205,7 +231,7 @@ public class ArmTTS {
         request.httpBody = postData
         let task = URLSession.shared.dataTask(with: request) { data, response, error in
           guard let data = data else {
-            self.printError(String(describing: error))
+            printError(String(describing: error))
             semaphore.signal()
             return
           }
