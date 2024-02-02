@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'ArmTTS'
-  s.version          = '2.0.0'
+  s.version          = '2.0.1'
   s.summary          = 'Text-to-Speech (TTS) engine for the Armenian language.'
 
   s.description      = <<-DESC
@@ -22,5 +22,5 @@ Pod::Spec.new do |s|
   s.static_framework = true
   s.pod_target_xcconfig = { 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'arm64' }
   s.user_target_xcconfig = { 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'arm64' }
-  s.dependency 'onnxruntime-objc', '1.13.1'
+  s.dependency 'onnxruntime-objc', '1.15.1'
 end
