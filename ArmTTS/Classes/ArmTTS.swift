@@ -17,7 +17,7 @@ func printError(_ msg: String) {
 }
 
 public class ArmTTS : NSObject {
-    private let API_URL = "https://armtts1.p.rapidapi.com/v2/preprocess"
+    private let API_URL = "https://armtts1.p.rapidapi.com/v3/preprocess"
     private let MODEL = "arm-gor"
     private let MAX_LENGTH = 140;
     private let SAMPLE_RATE = 44_100
@@ -64,7 +64,7 @@ public class ArmTTS : NSObject {
     func makeScales(speed: Float) throws -> ORTValue {
         let inputShape: [NSNumber] = [3]
         let data = NSMutableData()
-        let scales: [Float32] = [0.0, speed, 0.0]
+        let scales: [Float32] = [0.333, speed, 0.333]
         for scale in scales {
             var tmp: Float32 = scale;
             let floatData = Data(bytes: &tmp, count: MemoryLayout.size(ofValue: tmp))
