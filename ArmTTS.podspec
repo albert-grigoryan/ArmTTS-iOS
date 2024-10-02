@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'ArmTTS'
-  s.version          = '2.0.1'
+  s.version          = '3.0.0'
   s.summary          = 'Text-to-Speech (TTS) engine for the Armenian language.'
 
   s.description      = <<-DESC
